@@ -11,15 +11,35 @@ jobs:
     steps:
       - name: Trigger AI Briefing Workflow
         run: |
-          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST \
-            "${{ secrets.COZE_API_URL }}/run" \
-            -H "Content-Type: application/json" \
-            -d '{}')
-          HTTP_STATUS=$(echo "$RESPONSE" | grep "HTTP_STATUS:" | cut -d':' -f2)
-          echo "状态码: $HTTP_STATUS"
-          if [ "$HTTP_STATUS" -eq 200 ]; then
-            echo "✅ 成功"
+          echo "开始触发 AI 简报工作流..."
+          echo "当前北京时间: $(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S')"
+          
+          # 构建 API URL
+          API_URL="${{ secrets.COZE_API_URL }}/run"
+          
+          # 发送请求（带认证）
+          if [ -n "${{ secrets.COZE_API_TOKEN }}" ]; then
+            RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST \
+              "$API_URL" \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer ${{ secrets.COZE_API_TOKEN }}" \
+              -d '{}')
           else
-            echo "❌ 失败"
+            RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST \
+              "$API_URL" \
+              -H "Content-Type: application/json" \
+              -d '{}')
+          fi
+          
+          HTTP_STATUS=$(echo "$RESPONSE" | grep "HTTP_STATUS:" | cut -d':' -f2)
+          BODY=$(echo "$RESPONSE" | sed '/HTTP_STATUS:/d')
+          
+          echo "HTTP 状态码: $HTTP_STATUS"
+          echo "响应内容: $BODY"
+          
+          if [ "$HTTP_STATUS" = "200" ]; then
+            echo "✅ 工作流触发成功！"
+          else
+            echo "❌ 工作流触发失败！"
             exit 1
           fi
